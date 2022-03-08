@@ -1,0 +1,72 @@
+version: '3.7'
+services:
+  frontend:
+    depends_on:
+      - backend
+    build:
+      context: frontend/
+      dockerfile: Dockerfile.dev
+    container_name: frontend
+    ports:
+      - '3000:3000'
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.frontend.tls=true
+      - traefik.http.routers.frontend.rule=Host("frontend.docker.localhost")
+
+  backend:
+    depends_on:
+      - redis
+      - postgres
+    build:
+      context: backend/pingService
+      dockerfile: Dockerfile
+    container_name: backend
+    ports:
+      - '4000:4000'
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.backend.tls=true
+      - traefik.http.routers.backend.rule=Host("backend.docker.localhost")
+
+  redis:
+    depends_on:
+      - traefik
+    image: redis:latest
+    container_name: redis
+    environment:
+      - REDIS_PASSWORD=redis
+
+    ports:
+      - '6379:6379'
+    labels:
+      - traefik.enable=true
+
+  postgres:
+    depends_on:
+      - traefik
+    image: postgres:latest
+    container_name: postgres
+    environment:
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_DB=postgres
+    ports:
+      - '5422:5432'
+    labels:
+      - traefik.enable=true
+
+  traefik:
+    image: 'traefik:v2.6'
+    container_name: 'traefik'
+    command:
+      - '--log.level=DEBUG'
+      - '--api.insecure=true'
+      - '--providers.docker=true'
+      - '--providers.docker.exposedbydefault=false'
+      - '--entrypoints.web.address=:80'
+    ports:
+      - '80:80'
+      - '8080:8080'
+    volumes:
+      - '/var/run/docker.sock:/var/run/docker.sock:ro'
