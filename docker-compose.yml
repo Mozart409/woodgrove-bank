@@ -2,7 +2,7 @@ version: '3.7'
 services:
   frontend:
     depends_on:
-      - backend
+      - ping
     build:
       context: frontend/
       dockerfile: Dockerfile.dev
@@ -18,20 +18,50 @@ services:
       - /app/node_modules
       - /app/.next
 
-  backend:
+  buy:
+    depends_on:
+      - redis
+      - postgres
+    build:
+      context: backend/buy
+      dockerfile: Dockerfile
+    container_name: buy
+    ports:
+      - '4001:4000'
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.buy.tls=true
+      - traefik.http.routers.buy.rule=Host("buy.docker.localhost")
+
+  auth:
+    depends_on:
+      - redis
+      - postgres
+    build:
+      context: backend/auth
+      dockerfile: Dockerfile
+    container_name: auth
+    ports:
+      - '4002:4000'
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.auth.tls=true
+      - traefik.http.routers.auth.rule=Host("auth.docker.localhost")
+
+  ping:
     depends_on:
       - redis
       - postgres
     build:
       context: backend/pingService
       dockerfile: Dockerfile
-    container_name: backend
+    container_name: ping
     ports:
-      - '4000:4000'
+      - '4003:4000'
     labels:
       - traefik.enable=true
-      - traefik.http.routers.backend.tls=true
-      - traefik.http.routers.backend.rule=Host("backend.docker.localhost")
+      - traefik.http.routers.ping.tls=true
+      - traefik.http.routers.ping.rule=Host("ping.docker.localhost")
 
   redis:
     image: redis:latest
@@ -60,11 +90,13 @@ services:
     image: traefik:latest
     container_name: traefik
     command:
-      - '--log.level=DEBUG'
+      - '--log.level=WARN'
       - '--api.insecure=true'
       - '--providers.docker=true'
       - '--providers.docker.exposedbydefault=false'
       - '--entrypoints.web.address=:80'
+      - '--pilot.token=9c7b5d97-84a5-48ac-b163-2b40aa76d664'
+
     ports:
       - '80:80'
       - '8080:8080'
